@@ -5,18 +5,19 @@ WORKDIR /app
 # Install system dependencies required for MySQL client
 RUN apt-get update && apt-get install -y \
     default-libmysqlclient-dev \
+    pkg-config \
+    libmariadb-dev \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the service file
 COPY service.py .
 
-# Copy the pyproject.toml for dependencies
-COPY ../../../pyproject.toml .
+# Copy the requirements.txt for dependencies
+COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r <(pip-compile pyproject.toml 2>/dev/null || echo "flask flask-mysqldb pyjwt python-dotenv requests") || \
-    pip install --no-cache-dir flask flask-mysqldb pyjwt python-dotenv requests
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose the port the Flask app runs on
 EXPOSE 5000
