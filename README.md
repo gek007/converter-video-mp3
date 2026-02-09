@@ -15,3 +15,8 @@ Then put a new message on the queue to be consumed by the notification service t
 The client will then use a unique ID requirement from the notification plus his or her JWT to make a request to the API Gateway to download the MP3 and the API Gateway will pull the MP3 from Mongodb and serve it to the client and that is the overall conversion flow and how RabbitMQ a is integrated with the overall system. 
 
 
+=========================
+
+MySQL DB
+user: kshilrot@email 
+pass: Admin123
