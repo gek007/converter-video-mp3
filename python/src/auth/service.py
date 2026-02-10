@@ -7,7 +7,7 @@ from flask import Flask, request
 from flask_mysqldb import MySQL
 
 load_dotenv(dotenv_path="../../.env")
-load_dotenv(dotenv_path="../../.env.loca", override=True)
+load_dotenv(dotenv_path="../../.env.local", override=True)
 
 server = Flask(__name__)
 mysql = MySQL(server)
@@ -29,6 +29,7 @@ def login():
         return "Missing credentials", 401
 
     # check db for username and password
+
     cur = mysql.connection.cursor()
     res = cur.execute(
         "SELECT email, password FROM user WHERE email = %s", (auth.username,)

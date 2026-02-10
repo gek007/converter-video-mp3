@@ -16,7 +16,7 @@ spec:
   template:
     metadata:
       labels:
-      app: auth
+        app: auth
     spec:
       containers:
         - name: auth
