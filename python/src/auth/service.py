@@ -1,25 +1,26 @@
 import datetime
 import os
+from pathlib import Path
 
 import jwt
 from dotenv import load_dotenv
 from flask import Flask, request
 from flask_mysqldb import MySQL
 
-load_dotenv(dotenv_path="../../.env")
-load_dotenv(dotenv_path="../../.env.local", override=True)
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=BASE_DIR / "../../.env")
+load_dotenv(dotenv_path=BASE_DIR / "../../.env.local", override=True)
 
 server = Flask(__name__)
-mysql = MySQL(server)
 
 # config mysql
 server.config["MYSQL_HOST"] = os.getenv("MYSQL_HOST")
 server.config["MYSQL_USER"] = os.getenv("MYSQL_USER")
 server.config["MYSQL_PASSWORD"] = os.getenv("MYSQL_PASSWORD")
 server.config["MYSQL_DB"] = os.getenv("MYSQL_DB")
-server.config["MYSQL_PORT"] = os.getenv("MYSQL_PORT")
+server.config["MYSQL_PORT"] = int(os.getenv("MYSQL_PORT") or 3306)
 
-print(server.config["MYSQL_HOST"])
+mysql = MySQL(server)
 
 
 @server.route("/login", methods=["POST"])
@@ -31,26 +32,27 @@ def login():
     # check db for username and password
 
     cur = mysql.connection.cursor()
-    res = cur.execute(
-        "SELECT email, password FROM user WHERE email = %s", (auth.username,)
-    )
+    try:
+        res = cur.execute(
+            "SELECT email, password FROM user WHERE email = %s", (auth.username,)
+        )
 
-    if res > 0:
-        user_row = cur.fetchone()
-        email = user_row[0]
-        password = user_row[1]
+        if res > 0:
+            user_row = cur.fetchone()
+            email = user_row[0]
+            password = user_row[1]
 
-        if auth.username != email or auth.password != password:
-            return "Invalid credentials", 401
-        else:
+            if auth.username != email or auth.password != password:
+                return "Invalid credentials", 401
             return createJWT(auth.username, os.getenv("JWT_SECRET"), True)
-    else:
         return "Invalid credentials", 401
+    finally:
+        cur.close()
 
 
 @server.route("/validate", methods=["POST"])
 def validate():
-    encoded_jwt = request.headers["Authorization"]
+    encoded_jwt = request.headers.get("Authorization")
     if not encoded_jwt:
         return "Missing credentials", 401
 
