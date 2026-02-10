@@ -19,17 +19,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   React UI  │────▶│  API Gateway│────▶│   Auth Srv  │
 └─────────────┘     └─────────────┘     └─────────────┘
-                          │                      │
-                          ▼                      ▼
-                    ┌─────────────┐     ┌─────────────┐
-                    │    RabbitMQ │────▶│  Converter  │
-                    └─────────────┘     └─────────────┘
-                          │
-                          ▼
-                    ┌─────────────┐
-                    │  Summary Srv│
-                    └─────────────┘
+       │                  │   │                  │
+       │                  ▼   ▼                  ▼
+       │            ┌─────────────┐       ┌──────────┐
+       │            │  MongoDB    │◄──────│  MySQL   │
+       │            │  (GridFS)   │       └──────────┘
+       │            └─────────────┘
+       │                  │
+       ▼                  ▼
+ ┌───────────┐      ┌─────────────┐
+ │  RabbitMQ │─────▶│  Summary    │
+ └───────────┘      │    Srv      │
+       │            └─────────────┘
+       ▼
+ ┌─────────────┐
+ │  Converter  │
+ └─────────────┘
 ```
+
+**Data Stores**:
+- **MySQL** (`auth` DB) - User credentials, authentication data
+- **MongoDB** (`videos` DB) - Video/MP3 files (GridFS), summaries, categories
 
 ### Services Overview
 
@@ -61,8 +71,16 @@ system_design/
 │       │   └── requirements.txt
 │       ├── gateway/
 │       │   └── server.py           # API gateway (incomplete - upload/download pending)
-│       └── summary/
-│           └── service.py          # AI summarization service
+│       ├── summary/
+│       │   └── service.py          # AI summarization service
+│       ├── converter/              # ❌ Not Started - FFmpeg video to MP3 conversion
+│       │   ├── service.py          # To be created
+│       │   ├── Dockerfile
+│       │   └── requirements.txt
+│       └── notification/           # ❌ Not Started - Email notifications
+│           ├── service.py          # To be created
+│           ├── Dockerfile
+│           └── requirements.txt
 ├── plan/
 │   └── video_to_mp3_microservices_plan.md  # Architecture planning document
 ├── pyproject.toml                  # uv package manager config
