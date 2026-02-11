@@ -17,9 +17,12 @@ def upload(file, fs, channel, access):
     # publish the message to the queue
     try:
         channel.basic_publish(
-            exchange="", routing_key="video", body=json.dumps(message), properties=pika.BasicProperties(
+            exchange="",
+            routing_key="video",
+            body=json.dumps(message),
+            properties=pika.BasicProperties(
                 delivery_mode=pika.spec.PERSISTENT_DELIVERY_MODE
-            )
+            ),
         )
     except Exception:
         fs.delete(fid)
