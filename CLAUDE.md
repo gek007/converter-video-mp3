@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Databases**: MySQL (user auth), MongoDB (file storage/GridFS)
 - **Message Queue**: RabbitMQ (planned)
 - **Containerization**: Docker (basic setup for auth service)
-- **Package Management**: uv (pyproject.toml configured)
+- **Package Management**: uv (per-service pyproject.toml)
 
 ## Architecture
 
@@ -39,15 +39,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Data Stores**:
 - **MySQL** (`auth` DB) - User credentials, authentication data
-- **MongoDB** (`videos` DB) - Video/MP3 files (GridFS), summaries, categories
+- **MongoDB** (`videos` DB for summary, `gateway` DB for gateway) - Video/MP3 files (GridFS), summaries
 
 ### Services Overview
 
 | Service | Location | Port | Status | Description |
 |---------|----------|------|--------|-------------|
-| Auth Service | `/python/src/auth/` | 5000 | ✅ Complete | User registration/login, JWT generation/validation |
+| Auth Service | `/python/src/auth/` | 5000 | ✅ Complete | User login, JWT validation |
 | API Gateway | `/python/src/gateway/` | 5001 | 🚧 Partial | Central entry point, file I/O, JWT validation, GridFS |
-| Summary Service | `/python/src/summary/` | 5002 | ✅ Complete | AI-powered file summarization, categories |
+| Summary Service | `/python/src/summary/` | 5002 | ✅ Complete | AI-powered file summarization |
 | Video Converter | - | - | ❌ Not Started | FFmpeg-based video to MP3 conversion |
 | Notification Service | - | - | ❌ Not Started | Email notifications for job completion |
 | Web UI | - | - | ❌ Not Started | React frontend for upload/download |
@@ -62,31 +62,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## File Structure
 
 ```
-system_design/
-├── python/
-│   └── src/
-│       ├── auth/
-│       │   ├── service.py          # Flask auth service (login, register, validate)
-│       │   ├── Dockerfile
-│       │   └── requirements.txt
-│       ├── gateway/
-│       │   └── server.py           # API gateway (incomplete - upload/download pending)
-│       ├── summary/
-│       │   └── service.py          # AI summarization service
-│       ├── converter/              # ❌ Not Started - FFmpeg video to MP3 conversion
-│       │   ├── service.py          # To be created
-│       │   ├── Dockerfile
-│       │   └── requirements.txt
-│       └── notification/           # ❌ Not Started - Email notifications
-│           ├── service.py          # To be created
-│           ├── Dockerfile
-│           └── requirements.txt
+converter-video-mp3/
+├── CLAUDE.md                           # This file - project guidance
+├── README.md                           # Project overview
+├── main.py                             # Root entry point (placeholder)
+├── FLOW.JPG                            # Architecture diagram
+├── converter-video-mp3.code-workspace  # VSCode workspace config
 ├── plan/
 │   └── video_to_mp3_microservices_plan.md  # Architecture planning document
-├── pyproject.toml                  # uv package manager config
-├── .env                            # Database credentials
-├── main.py                         # Entry point
-└── CLAUDE.md                       # This file
+└── python/
+    └── src/
+        ├── auth/                       # Authentication service
+        │   ├── service.py              # Flask auth service (login, validate)
+        │   ├── Dockerfile              # Container configuration
+        │   ├── requirements.txt        # Python dependencies
+        │   ├── pyproject.toml          # UV package manager config
+        │   ├── uv.lock                 # Exact dependency versions
+        │   ├── init.sql                # Database initialization script
+        │   ├── .env                    # Environment configuration
+        │   ├── .env.local              # Local environment overrides
+        │   └── manifests/              # Kubernetes deployment files
+        │       ├── auth-deploy.yaml    # Deployment configuration
+        │       ├── configmap.yaml      # ConfigMap for environment variables
+        │       ├── secret.yaml         # Secret configuration
+        │       └── service.yaml        # Kubernetes service definition
+        ├── gateway/                    # API Gateway service
+        │   ├── service.py              # Flask gateway service (incomplete)
+        │   ├── pyproject.toml          # UV package manager config
+        │   ├── uv.lock                 # Exact dependency versions
+        │   ├── .env                    # Environment configuration
+        │   └── .env.local              # Local environment overrides
+        └── summary/                    # Summary service
+            └── service.py              # AI summarization service
 ```
 
 ## Running Services
@@ -94,167 +101,57 @@ system_design/
 **Prerequisites**: MySQL, MongoDB, RabbitMQ running locally or via minikube
 
 ```bash
-# Set up environment
-cp .env.example .env  # Configure DB credentials
+# Install dependencies (service-specific with uv)
+cd python/src/auth && uv sync
+cd python/src/gateway && uv sync
 
-# Install dependencies (service-specific)
+# Or use pip with requirements.txt (auth service)
 pip install -r python/src/auth/requirements.txt
-pip install -r python/src/gateway/requirements.txt
 
 # Run services individually
 python python/src/auth/service.py       # Port 5000
-python python/src/gateway/server.py     # Port 5001
+python python/src/gateway/service.py    # Port 5001
 python python/src/summary/service.py    # Port 5002
 
 # Docker (auth service only currently)
-docker build -f python/src/auth/Dockerfile -t auth-service .
-docker run -p 5000:5000 --env-file .env auth-service
+docker build -f python/src/auth/Dockerfile -t auth-service python/src/auth/
+docker run -p 5000:5000 --env-file python/src/auth/.env auth-service
 ```
 
-## Database Configuration
-
-**MySQL** (auth service):
-```
-MYSQL_HOST=localhost
-MYSQL_USER=root
-MYSQL_PASSWORD=root
-MYSQL_DB=auth
-MYSQL_PORT=3306
-```
-
-**MongoDB** (gateway/summary):
-- Connection: `mongodb://host.minikube.internal:27017/videos`
-- Uses GridFS for file storage
-- Collections: `fs.files`, `fs.chunks`, `summaries`, `categories`
-
-## Code Conventions
-
-**Service Structure**:
-- Single-file implementation per service (`service.py` or `server.py`)
-- Flask app with individual port configuration
-- Environment-based config via `os.getenv()`
-
-**API Patterns**:
-```python
-# JWT validation pattern (gateway)
-headers = {'Authorization': request.headers.get('Authorization')}
-response = requests.get('http://auth-service:5000/validate', headers=headers)
-
-# MongoDB GridFS pattern (gateway)
-mongo_client = MongoClient(mongo_uri)
-db = mongo_client.get_database()
-fs = gridfs.GridFS(db)
-file_id = fs.put(file_data, filename=name, contentType=content_type)
-
-# RabbitMQ pattern (planned)
-connection = pika.BlockingConnection(pika.ConnectionParameters(host))
-channel = connection.channel()
-channel.queue_declare(queue='video_uploads')
-channel.basic_publish(exchange='', routing_key='video_uploads', body=message)
-```
-
-**Error Response Format**:
-```python
-return jsonify({'error': 'message'}), status_code
-```
-
-**Authentication Flow**:
-1. Register/Login → Auth service returns JWT
-2. Client includes `Authorization: Bearer <token>` header
-3. Gateway validates token via auth service `/validate` endpoint
-4. Protected routes return 401 if validation fails
-
-## Key Dependencies
-
-**Core**: `flask>=3.1.2`, `flask-mysqldb>=2.0.0`, `flask-pymongo>=3.0.1`, `pyjwt>=2.11.0`, `pika>=1.3.2`
-
-## Implementation Status
-
-### ✅ Complete
-- **Auth Service**: Full Flask service with MySQL integration
-  - POST `/register` - User registration (username, email, password)
-  - POST `/login` - User login, returns JWT token
-  - GET `/validate` - JWT token validation
-  - JWT expires in 1 day (86400 seconds)
-
-- **Summary Service**: AI-powered file summarization
-  - POST `/summarize` - Generate file summary via external AI API
-  - GET `/summaries` - List all summaries
-  - GET `/summary/<id>` - Get specific summary
-  - POST `/categories` - Create custom category
-  - GET `/categories` - List all categories
-  - External AI endpoint: `https://aigcmock-production.up.railway.app/ai/summary`
-
-### 🚧 In Progress
-- **API Gateway** (`/python/src/gateway/server.py`)
-  - JWT validation via auth service integration (done)
-  - MongoDB connection setup (done)
-  - Missing: `/upload`, `/download/<filename>` endpoints
-  - Missing: RabbitMQ message publishing
-
-### ❌ Not Started
-- Video Converter Service (FFmpeg integration)
-- Notification Service (email notifications)
-- React Web UI
-- Kubernetes deployment manifests
-- User registration endpoint in gateway
-- Docker images for gateway/summary services
-
-## Running Services
-
-**Prerequisites**: MySQL, MongoDB, RabbitMQ running locally or via minikube
-
+**uv Package Manager** (per-service configuration):
 ```bash
-# Set up environment
-cp .env.example .env  # Configure DB credentials
-
-# Install dependencies (service-specific)
-pip install -r python/src/auth/requirements.txt
-pip install -r python/src/gateway/requirements.txt
-
-# Run services individually
-python python/src/auth/service.py       # Port 5000
-python python/src/gateway/server.py     # Port 5001
-python python/src/summary/service.py    # Port 5002
-
-# Docker (auth service only currently)
-docker build -f python/src/auth/Dockerfile -t auth-service .
-docker run -p 5000:5000 --env-file .env auth-service
-```
-
-**uv Package Manager** (configured in pyproject.toml):
-```bash
-uv pip install -r requirements.txt
-uv pip freeze
-uv sync
-uv add package-name
+cd python/src/auth  # or gateway
+uv sync              # Install dependencies
+uv add package-name  # Add new dependency
+uv lock              # Update lock file
 ```
 
 ## Database Configuration
 
 ### MySQL (Auth Service)
-Environment variables in `.env`:
+Environment variables in `python/src/auth/.env`:
 ```env
 MYSQL_HOST=localhost
-MYSQL_USER=root
-MYSQL_PASSWORD=root
+MYSQL_USER=auth_user
+MYSQL_PASSWORD=Auth123
 MYSQL_DB=auth
 MYSQL_PORT=3306
+JWT_SECRET=your-secret-key
 ```
 
-**User Table Schema** (created by auth service):
+**User Table Schema** (created by `init.sql`):
 ```sql
-CREATE TABLE users (
+CREATE TABLE user (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(255) UNIQUE NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL
 )
 ```
 
 ### MongoDB (Gateway/Summary Services)
-- **Connection**: `mongodb://host.minikube.internal:27017/videos`
-- **Database**: `videos`
+
+**Gateway**: `mongodb://host.minikube.internal:27017/gateway`
+**Summary**: `mongodb://host.minikube.internal:27017/videos`
 
 #### MongoDB Schema
 
@@ -301,67 +198,27 @@ CREATE TABLE users (
 }
 ```
 
-`categories` - Custom categories:
-```javascript
-{
-  _id: ObjectId,
-  name: string,               // Category name
-  description: string,        // Category description (optional)
-  created_at: ISODate         // Creation timestamp
-}
-```
-
-**GridFS Usage Pattern**:
-```python
-import gridfs
-from pymongo import MongoClient
-
-client = MongoClient(mongo_uri)
-db = client.get_database()
-fs = gridfs.GridFS(db)
-
-# Store video file
-video_id = fs.put(
-    file_data,
-    filename="video.mp4",
-    contentType="video/mp4",
-    metadata={"file_type": "video", "user_id": "123"}
-)
-
-# Store MP3 file (converted)
-mp3_id = fs.put(
-    mp3_data,
-    filename="video.mp3",
-    contentType="audio/mpeg",
-    metadata={
-        "file_type": "mp3",
-        "user_id": "123",
-        "converted_from": video_id,
-        "status": "completed"
-    }
-)
-
-# Retrieve file by ID
-file = fs.get(file_id)
-data = file.read()
-metadata = file.metadata
-```
-
 ## Code Conventions
 
 ### Service Structure Pattern
 ```python
-# Single-file implementation per service
+# Single-file implementation per service (service.py)
 from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+load_dotenv(".env.local", override=True)
+
 app = Flask(__name__)
 
 # Environment-based configuration
+import os
 mysql_host = os.getenv('MYSQL_HOST', 'localhost')
 mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/videos')
 
 # Run on specific port
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
 ```
 
 ### API Patterns
@@ -369,19 +226,19 @@ if __name__ == '__main__':
 **JWT Validation (Gateway → Auth Service)**:
 ```python
 headers = {'Authorization': request.headers.get('Authorization')}
-response = requests.get('http://auth-service:5000/validate', headers=headers)
+response = requests.post('http://auth-service:5000/validate', headers=headers)
 if response.status_code != 200:
     return jsonify({'error': 'Invalid token'}), 401
 ```
 
 **MongoDB GridFS (File Storage)**:
 ```python
-from pymongo import MongoClient
+from flask_pymongo import PyMongo
 import gridfs
 
-mongo_client = MongoClient(mongo_uri)
-db = mongo_client.get_database()
-fs = gridfs.GridFS(db)
+server.config["MONGO_URI"] = os.getenv("MONGO_URI")
+mongo = PyMongo(server)
+fs = gridfs.GridFS(mongo.db)
 
 # Store file
 file_id = fs.put(file_data, filename=name, contentType=content_type)
@@ -394,7 +251,7 @@ file_data = fs.get(file_id).read()
 ```python
 import pika
 
-connection = pika.BlockingConnection(pika.ConnectionParameters(host))
+connection = pika.BlockingConnection(pika.ConnectionParameters("rabbitmq"))
 channel = connection.channel()
 channel.queue_declare(queue='video_uploads')
 channel.basic_publish(exchange='', routing_key='video_uploads', body=message)
@@ -408,10 +265,38 @@ return jsonify({'error': 'Descriptive error message'}), status_code
 ```
 
 ### Authentication Flow
-1. User registers/logs in via Auth Service → receives JWT token
+1. User logs in via Auth Service → receives JWT token
 2. Client includes `Authorization: Bearer <token>` header in requests
 3. Gateway validates token by calling Auth Service `/validate` endpoint
 4. Protected routes return 401 if validation fails
+
+## Implementation Status
+
+### ✅ Complete
+- **Auth Service**: Full Flask service with MySQL integration
+  - POST `/login` - User login (Basic Auth), returns JWT token
+  - POST `/validate` - JWT token validation
+  - JWT expires in 1 day (86400 seconds)
+  - Default user: `kshilkrot@email.com` / `Admin123`
+
+- **Summary Service**: AI-powered file summarization
+  - POST `/summaries` - Generate file summary via external AI API
+  - Configurable via environment variables (AI_SUMMARY_URL, AI_SUMMARY_API_KEY, AI_SUMMARY_TIMEOUT, AI_SUMMARY_MAX_CHARS)
+
+### 🚧 In Progress
+- **API Gateway** (`/python/src/gateway/service.py`)
+  - MongoDB connection setup (done)
+  - RabbitMQ connection setup (done)
+  - Missing: `/upload`, `/download/<filename>` endpoints
+  - Missing: JWT validation via auth service
+  - Missing: File handling with GridFS
+
+### ❌ Not Started
+- Video Converter Service (FFmpeg integration)
+- Notification Service (email notifications)
+- React Web UI
+- Docker images for gateway/summary services
+- User registration endpoint
 
 ## Key Dependencies
 
@@ -424,6 +309,7 @@ return jsonify({'error': 'Descriptive error message'}), status_code
 | pyjwt | >=2.11.0 | JWT token handling |
 | pika | >=1.3.2 | RabbitMQ client |
 | requests | >=2.32.5 | HTTP requests |
+| python-dotenv | >=0.9.9 | Environment variable loading |
 
 ## Security Notes
 
@@ -462,8 +348,8 @@ return jsonify({'error': 'Descriptive error message'}), status_code
 
 1. **Local Development**: Run services directly with Python
 2. **Docker**: Containerize individual services for testing
-3. **Kubernetes**: Production deployment (planned)
-4. **Configuration**: Environment-specific via `.env` files, ConfigMaps, Secrets
+3. **Kubernetes**: Production deployment (auth service manifests ready)
+4. **Configuration**: Environment-specific via `.env` and `.env.local` files per service
 
 ---
 
@@ -495,9 +381,8 @@ return jsonify({'error': 'Descriptive error message'}), status_code
 7. No API versioning
 
 ### Configuration Management
-- Root `.env` for shared database credentials
-- Service-specific environment variables
-- Kubernetes ConfigMaps and Secrets (planned)
+- Per-service `.env` and `.env.local` files
+- Kubernetes ConfigMaps and Secrets (auth service ready)
 - AI service endpoint configured as environment variable
 
 ---
