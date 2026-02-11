@@ -3,12 +3,11 @@ import os
 
 import jwt
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
 from flask_mysqldb import MySQL
 
 load_dotenv(".env")
 load_dotenv(".env.local", override=True)
-
 
 server = Flask(__name__)
 
@@ -18,6 +17,9 @@ server.config["MYSQL_USER"] = os.getenv("MYSQL_USER")
 server.config["MYSQL_PASSWORD"] = os.getenv("MYSQL_PASSWORD")
 server.config["MYSQL_DB"] = os.getenv("MYSQL_DB")
 server.config["MYSQL_PORT"] = int(os.getenv("MYSQL_PORT") or 3306)
+
+print("MYSQL_HOST:", server.config["MYSQL_HOST"])
+
 
 mysql = MySQL(server)
 
@@ -41,10 +43,10 @@ def login():
 
             if auth.username != email or auth.password != password:
                 return jsonify({"error": "Invalid credentials"}), 401
-            
+
             token = create_jwt(auth.username, os.getenv("JWT_SECRET"), True)
             return jsonify({"token": token}), 200
-        
+
         return jsonify({"error": "Invalid credentials"}), 401
     except Exception:
         return jsonify({"error": "Database error"}), 500
@@ -60,9 +62,7 @@ def validate():
 
     try:
         encoded_jwt = encoded_jwt.split(" ")[1]
-        decoded = jwt.decode(
-            encoded_jwt, os.getenv("JWT_SECRET"), algorithms=["HS256"]
-        )
+        decoded = jwt.decode(encoded_jwt, os.getenv("JWT_SECRET"), algorithms=["HS256"])
         return jsonify(decoded), 200
     except jwt.ExpiredSignatureError:
         return jsonify({"error": "Token expired"}), 401
