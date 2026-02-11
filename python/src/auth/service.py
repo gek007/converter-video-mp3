@@ -7,9 +7,13 @@ from dotenv import load_dotenv
 from flask import Flask, request
 from flask_mysqldb import MySQL
 
-BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(dotenv_path=BASE_DIR / "../../.env")
-load_dotenv(dotenv_path=BASE_DIR / "../../.env.local", override=True)
+# BASE_DIR = Path(__file__).resolve().parent
+# load_dotenv(dotenv_path=BASE_DIR / "../../.env")
+# load_dotenv(dotenv_path=BASE_DIR / "../../.env.local", override=True)
+
+load_dotenv(".env")
+load_dotenv(".env.local", override=True)
+
 
 server = Flask(__name__)
 

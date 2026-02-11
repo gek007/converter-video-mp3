@@ -1,7 +1,4 @@
-import json
 import os
-from datetime import datetime
-from pathlib import Path
 
 import gridfs
 import pika
@@ -14,9 +11,12 @@ from flask_pymongo import PyMongo
 
 # from storage import util
 
-BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(dotenv_path=BASE_DIR / "../../.env")
-load_dotenv(dotenv_path=BASE_DIR / "../../.env.local", override=True)
+# BASE_DIR = Path(__file__).resolve().parent
+# load_dotenv(dotenv_path=BASE_DIR / "../../.env")
+# load_dotenv(dotenv_path=BASE_DIR / "../../.env.local", override=True)
+
+load_dotenv(".env")
+load_dotenv(".env.local", override=True)
 
 
 # Initialize Flask server and MongoDB connection
