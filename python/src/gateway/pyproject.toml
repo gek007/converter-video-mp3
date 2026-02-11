@@ -1,0 +1,18 @@
+[project]
+name = "auth-service"
+version = "0.1.0"
+description = "Authentication service using Flask and JWT"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.1.2",
+    "flask-mysqldb>=2.0.0",
+    "requests>=2.32.5",
+    "ipykernel>=7.2.0",
+    "pyjwt>=2.11.0",
+    "python-dotenv>=0.9.9",
+    "flask-pymongo>=3.0.1",
+]
+
+[tool.ruff.lint]
+unfixable = ["F401"]
