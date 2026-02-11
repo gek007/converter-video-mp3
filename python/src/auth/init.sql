@@ -4,15 +4,19 @@ CREATE DATABASE IF NOT EXISTS auth;
 -- Use the database
 USE auth;
 
-GRANT ALL PRIVILEGES ON auth.* TO 'auth_user'@'localhost';
+-- Create user if not exists
+CREATE USER IF NOT EXISTS 'auth_user'@'%' IDENTIFIED BY 'Auth123';
+GRANT ALL PRIVILEGES ON auth.* TO 'auth_user'@'%';
+FLUSH PRIVILEGES;
 
--- Create the USER table
-CREATE TABLE IF NOT EXISTS USER (
+-- Create the user table
+CREATE TABLE IF NOT EXISTS user (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL
 );
 
--- Insert the user (note: in production, you should hash passwords)
-INSERT INTO USER (email, password) VALUES 
-('kshilkrot@email.com', 'Admin123');
+-- Insert default user (note: in production, passwords should be hashed)
+INSERT INTO user (email, password) VALUES 
+('kshilkrot@email.com', 'Admin123')
+ON DUPLICATE KEY UPDATE password = 'Admin123';
