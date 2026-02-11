@@ -1,15 +1,10 @@
 import datetime
 import os
-from pathlib import Path
 
 import jwt
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_mysqldb import MySQL
-
-# BASE_DIR = Path(__file__).resolve().parent
-# load_dotenv(dotenv_path=BASE_DIR / "../../.env")
-# load_dotenv(dotenv_path=BASE_DIR / "../../.env.local", override=True)
 
 load_dotenv(".env")
 load_dotenv(".env.local", override=True)
@@ -31,9 +26,7 @@ mysql = MySQL(server)
 def login():
     auth = request.authorization
     if not auth:
-        return "Missing credentials", 401
-
-    # check db for username and password
+        return jsonify({"error": "Missing credentials"}), 401
 
     cur = mysql.connection.cursor()
     try:
@@ -47,9 +40,14 @@ def login():
             password = user_row[1]
 
             if auth.username != email or auth.password != password:
-                return "Invalid credentials", 401
-            return createJWT(auth.username, os.getenv("JWT_SECRET"), True)
-        return "Invalid credentials", 401
+                return jsonify({"error": "Invalid credentials"}), 401
+            
+            token = create_jwt(auth.username, os.getenv("JWT_SECRET"), True)
+            return jsonify({"token": token}), 200
+        
+        return jsonify({"error": "Invalid credentials"}), 401
+    except Exception:
+        return jsonify({"error": "Database error"}), 500
     finally:
         cur.close()
 
@@ -58,24 +56,32 @@ def login():
 def validate():
     encoded_jwt = request.headers.get("Authorization")
     if not encoded_jwt:
-        return "Missing credentials", 401
+        return jsonify({"error": "Missing credentials"}), 401
 
-    encoded_jwt = encoded_jwt.split(" ")[1]
     try:
-        decoded = jwt.decode(encoded_jwt, os.getenv("JWT_SECRET"), algorithms=["HS256"])
-    except:
-        return "Invalid credentials", 401
+        encoded_jwt = encoded_jwt.split(" ")[1]
+        decoded = jwt.decode(
+            encoded_jwt, os.getenv("JWT_SECRET"), algorithms=["HS256"]
+        )
+        return jsonify(decoded), 200
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid token"}), 401
+    except IndexError:
+        return jsonify({"error": "Invalid authorization header format"}), 401
+    except Exception:
+        return jsonify({"error": "Validation failed"}), 401
 
-    return decoded, 200
 
-
-def createJWT(username, secret, authz):
+def create_jwt(username, secret, authz):
+    """Create JWT token for authenticated user."""
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
     return jwt.encode(
         {
             "username": username,
-            "exp": datetime.datetime.now(tz=datetime.timezone.utc)
-            + datetime.timedelta(days=1),
-            "iat": datetime.datetime.utcnow(),
+            "exp": now + datetime.timedelta(days=1),
+            "iat": now,
             "admin": authz,
         },
         secret,
