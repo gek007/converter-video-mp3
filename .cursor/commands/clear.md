@@ -1,0 +1,1 @@
+Clear all history in this chat. We start new conversation/topic.     
