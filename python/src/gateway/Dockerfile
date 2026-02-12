@@ -5,6 +5,7 @@ WORKDIR /app
 # Copy application files
 COPY server.py .
 COPY auth/ ./auth/
+COPY auth_srv/ ./auth_srv/
 COPY storage/ ./storage/
 
 # Copy and install dependencies
