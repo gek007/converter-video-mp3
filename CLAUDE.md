@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Containerization**: Docker (basic setup for auth service)
 - **Package Management**: uv (per-service pyproject.toml)
 
-## Architecture
+## Architecture overview 
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
