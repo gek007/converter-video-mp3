@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(kubectl port-forward:*)",
-      "Bash(kubectl exec:*)"
+      "Bash(kubectl exec:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''g:\\\\__VSCode\\\\_my-github\\\\converter-video-mp3\\\\python\\\\src\\\\auth'' -Name\")",
+      "Bash(cmd /c \"dir /b g:\\\\__VSCode\\\\_my-github\\\\converter-video-mp3\\\\python\\\\src\\\\auth\")",
+      "Bash(cmd /c \"type g:\\\\__VSCode\\\\_my-github\\\\converter-video-mp3\\\\python\\\\src\\\\auth\\\\Dockerfile\")",
+      "Bash(cmd /c \"type g:\\\\__VSCode\\\\_my-github\\\\converter-video-mp3\\\\python\\\\src\\\\converter\\\\pyproject.toml\")"
     ]
   }
 }
