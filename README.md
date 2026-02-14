@@ -20,3 +20,14 @@ The client will then use a unique ID requirement from the notification plus his 
 MySQL DB
 user: kshilrot@email 
 pass: Admin123
+
+==================
+
+# you can locally rich rabbit in browser (if k8s is running) by:
+# hosts file has config for it 
+http://rabbitmq-manager.com/  
+
+
+
+
+

@@ -1,7 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: rabbitmq-configmap 
+  name: rabbitmq-configmap
+  labels:
+    app: rabbitmq
 data:
-  PLACEHOLDER: "PLACEHOLDER"
-  
+  RABBITMQ_DEFAULT_USER: "admin"
+  RABBITMQ_DEFAULT_VHOST: "/"
