@@ -9,8 +9,7 @@ from bson.objectid import ObjectId
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,9 @@ def start(message, fs_videos, fs_mp3s, channel):
 
         video_fid = message["video_fid"]
         username = message["username"]
-        logger.info(f"Processing video conversion for user: {username}, video_fid: {video_fid}")
+        logger.info(
+            f"Processing video conversion for user: {username}, video_fid: {video_fid}"
+        )
 
         # Validate ObjectId format
         try:
@@ -80,15 +81,15 @@ def start(message, fs_videos, fs_mp3s, channel):
         try:
             logger.info(f"Starting video to mp3 conversion for {video_fid}")
             video_clip = mp.VideoFileClip(temp_video_path)
-            
+
             if video_clip.audio is None:
                 error_msg = "Video has no audio track"
                 logger.warning(f"{error_msg} for video {video_fid}")
                 return error_msg, 400
-            
+
             video_clip.audio.write_audiofile(temp_mp3_path, logger=None)
             logger.info(f"Video {video_fid} converted to mp3 successfully")
-            
+
         except Exception as err:
             error_msg = f"Failed to convert video to mp3: {err}"
             logger.error(error_msg)
@@ -156,7 +157,7 @@ def start(message, fs_videos, fs_mp3s, channel):
         # Catch-all for unexpected errors
         error_msg = f"Unexpected error during conversion: {err}"
         logger.exception(error_msg)
-        
+
         # Clean up mp3 if it was stored
         if mp3_fid:
             try:
@@ -164,7 +165,7 @@ def start(message, fs_videos, fs_mp3s, channel):
                 logger.info(f"Deleted mp3 {mp3_fid} after unexpected error")
             except Exception as cleanup_err:
                 logger.error(f"Failed to delete mp3 during cleanup: {cleanup_err}")
-        
+
         return error_msg, 500
 
     finally:
@@ -175,7 +176,7 @@ def start(message, fs_videos, fs_mp3s, channel):
                 logger.debug(f"Deleted temporary video file: {temp_video_path}")
             except Exception as err:
                 logger.warning(f"Failed to delete temporary video file: {err}")
-        
+
         if temp_mp3_path and os.path.exists(temp_mp3_path):
             try:
                 os.unlink(temp_mp3_path)
