@@ -4,7 +4,7 @@ import os
 import gridfs
 import pika
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
 from flask_pymongo import PyMongo
 
 from auth import validate
@@ -35,14 +35,14 @@ _rabbitmq_channel = None
 def get_rabbitmq_channel():
     """Get or create RabbitMQ channel."""
     global _rabbitmq_connection, _rabbitmq_channel
-    
+
     if _rabbitmq_channel is None:
         rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
         _rabbitmq_connection = pika.BlockingConnection(
             pika.ConnectionParameters(rabbitmq_host)
         )
         _rabbitmq_channel = _rabbitmq_connection.channel()
-    
+
     return _rabbitmq_channel
 
 
@@ -71,7 +71,7 @@ def upload():
 
         try:
             channel = get_rabbitmq_channel()
-            
+
             for _, file in request.files.items():
                 err = util.upload(file, fs, channel, access_data)
 
@@ -88,6 +88,10 @@ def upload():
 @server.route("/download", methods=["GET"])
 def download():
     pass
+
+
+def my_test_func():
+    return jsonify({"message": "Hello, World!"}), 200
 
 
 if __name__ == "__main__":

@@ -89,5 +89,9 @@ def create_jwt(username, secret, authz):
     )
 
 
+def test_func():
+    return jsonify({"message": "Hello, World!"}), 200
+
+
 if __name__ == "__main__":
     server.run(host="0.0.0.0", port=5000, debug=True)

@@ -20,3 +20,22 @@ The client will then use a unique ID requirement from the notification plus his 
 MySQL DB
 user: kshilrot@email 
 pass: Admin123
+
+==================
+
+# you can locally rich rabbit in browser (if k8s is running) by:
+# hosts file has config for it 
+
+Username: admin
+Password: guest
+
+Access URLs:
+http://localhost:15672 (port-forward)
+http://rabbitmq-manager.com (ingress - add to hosts file)
+
+
+
+Gateway -> save video in db 
+         + message to "video"   
+         
+
