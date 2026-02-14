@@ -35,3 +35,7 @@ http://rabbitmq-manager.com (ingress - add to hosts file)
 
 
 
+Gateway -> save video in db 
+         + message to "video"   
+         
+
