@@ -3,7 +3,7 @@ import logging
 import os
 import tempfile
 
-import moviepy.editor as mp
+import moviepy as mp
 import pika
 from bson.objectid import ObjectId
 
