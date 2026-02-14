@@ -8,9 +8,14 @@ from pymongo import MongoClient
 
 
 def main():
-    client = MongoClient("host.minikube.internal:27017")
-    db_videos = client.videos
-    db_mp3s = client.mp3s
+    # Use the same database configuration as gateway
+    mongo_uri = os.getenv("MONGO_URI", "mongodb://host.minikube.internal:27017/gateway")
+    client = MongoClient(mongo_uri)
+    
+    # Extract database name from URI, default to 'gateway'
+    db_name = mongo_uri.split('/')[-1] if '/' in mongo_uri else 'gateway'
+    db_videos = client[db_name]
+    db_mp3s = client[db_name]
 
     # connect to gridfs
     fs_videos = gridfs.GridFS(db_videos)
