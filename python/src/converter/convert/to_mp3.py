@@ -32,12 +32,18 @@ def start(message, fs_videos, fs_mp3s, channel):
     temp_file.close()
 
     # publish the message to the queue
-    channel.basic_publish(
-        exchange="",
-        routing_key=os.getenv("MP3_QUEUE"),
-        body=json.dumps(message),
-        properties=pika.BasicProperties(
-            delivery_mode=pika.spec.PERSISTENT_DELIVERY_MODE
-        ),
-    )
-    return message
+    try:
+        channel.basic_publish(
+            exchange="",
+            routing_key=os.getenv("MP3_QUEUE"),
+            body=json.dumps(message),
+            properties=pika.BasicProperties(
+                delivery_mode=pika.spec.PERSISTENT_DELIVERY_MODE
+            ),
+        )
+        return None
+
+    except Exception as err:
+        fs_videos.delete(ObjectId(video_fid))
+        fs_mp3s.delete(ObjectId(mp3_fid))
+        return f"Failed to publish message: {err}", 500
