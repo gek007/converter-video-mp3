@@ -4,12 +4,31 @@ import sys
 import gridfs
 import pika
 from convert import to_mp3
+from dotenv import load_dotenv
 from pymongo import MongoClient
+
+load_dotenv(".env")
+load_dotenv(".env.local", override=True)
 
 
 def main():
-    # Use the same database configuration as gateway
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://host.minikube.internal:27017/gateway")
+    # Load required environment variables
+    mongo_uri = os.getenv("MONGO_URI")
+    rabbitmq_host = os.getenv("RABBITMQ_HOST")
+    video_queue = os.getenv("VIDEO_QUEUE")
+    mp3_queue = os.getenv("MP3_QUEUE")
+
+    # Validate required environment variables
+    if not mongo_uri:
+        raise ValueError("MONGO_URI environment variable is required")
+    if not rabbitmq_host:
+        raise ValueError("RABBITMQ_HOST environment variable is required")
+    if not video_queue:
+        raise ValueError("VIDEO_QUEUE environment variable is required")
+    if not mp3_queue:
+        raise ValueError("MP3_QUEUE environment variable is required")
+
+    # Connect to MongoDB
     client = MongoClient(mongo_uri)
     
     # Extract database name from URI, default to 'gateway'
@@ -17,12 +36,12 @@ def main():
     db_videos = client[db_name]
     db_mp3s = client[db_name]
 
-    # connect to gridfs
+    # Connect to GridFS
     fs_videos = gridfs.GridFS(db_videos)
     fs_mp3s = gridfs.GridFS(db_mp3s)
 
-    # connect to rabbitmq
-    connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq"))
+    # Connect to RabbitMQ
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
     channel = connection.channel()
 
     def callback(ch, method, properties, body):
@@ -32,7 +51,7 @@ def main():
         else:
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    channel.basic_consume(queue=os.getenv("VIDEO_QUEUE"), on_message_callback=callback)
+    channel.basic_consume(queue=video_queue, on_message_callback=callback)
 
     print("Waiting for messages. To exit press CTRL+C")
     channel.start_consuming()

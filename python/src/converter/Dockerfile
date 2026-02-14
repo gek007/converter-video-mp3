@@ -15,6 +15,9 @@ RUN uv sync --frozen
 # Copy source code
 COPY . .
 
+# Copy environment file
+COPY .env .env
+
 EXPOSE 5003
 
 CMD ["uv", "run", "consumer.py"]
