@@ -3,5 +3,7 @@ kind: ConfigMap
 metadata:
   name: gateway-config
 data:
- AUTH_SVC_ADDRESS: "auth:5000"
- 
+  AUTH_SVC_ADDRESS: "auth:5000"
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_USER: "admin"
+  RABBITMQ_PORT: "5672"
