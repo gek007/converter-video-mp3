@@ -7,3 +7,4 @@ data:
   RABBITMQ_HOST: "rabbitmq"
   RABBITMQ_USER: "admin"
   RABBITMQ_PORT: "5672"
+  MONGO_URI: "mongodb://admin:admin123@mongodb:27017/gateway?authSource=admin"

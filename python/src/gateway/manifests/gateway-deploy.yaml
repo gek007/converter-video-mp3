@@ -18,13 +18,21 @@ spec:
       labels:
         app: gateway
     spec:
+      volumes:
+        - name: code-volume
+          configMap:
+            name: gateway-code
       containers:
         - name: gateway
           image: gek007/gateway:latest
+          volumeMounts:
+            - name: code-volume
+              mountPath: /app/server.py
+              subPath: server.py
           envFrom:
             - configMapRef:
                 name: gateway-config
-            - secretRef: 
+            - secretRef:
                 name: gateway-secrets
 
 

@@ -38,8 +38,19 @@ def get_rabbitmq_channel():
 
     if _rabbitmq_channel is None:
         rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+        rabbitmq_user = os.getenv("RABBITMQ_USER", "guest")
+        rabbitmq_pass = os.getenv("RABBITMQ_PASS", "guest")
+        rabbitmq_port = int(os.getenv("RABBITMQ_PORT", "5672"))
+
+        credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
         _rabbitmq_connection = pika.BlockingConnection(
-            pika.ConnectionParameters(rabbitmq_host)
+            pika.ConnectionParameters(
+                host=rabbitmq_host,
+                port=rabbitmq_port,
+                credentials=credentials,
+                heartbeat=600,
+                blocked_connection_timeout=300
+            )
         )
         _rabbitmq_channel = _rabbitmq_connection.channel()
 
@@ -73,10 +84,11 @@ def upload():
             channel = get_rabbitmq_channel()
 
             for _, file in request.files.items():
-                err = util.upload(file, fs, channel, access_data)
+                result = util.upload(file, fs, channel, access_data)
 
-                if err:
-                    return jsonify({"error": str(err[0])}), err[1]
+                # Check if result is an error tuple (message, status_code)
+                if isinstance(result, tuple) and len(result) == 2:
+                    return jsonify({"error": result[0]}), result[1]
 
             return jsonify({"message": "Upload successful"}), 200
         except Exception as e:
