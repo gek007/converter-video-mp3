@@ -38,4 +38,7 @@ http://rabbitmq-manager.com (ingress - add to hosts file)
 Gateway -> save video in db 
          + message to "video"   
          
+=============================================
 
+# kubectl port-forward running for local access.
+kubectl port-forward service/gateway 8888:8080
