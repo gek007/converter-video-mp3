@@ -12,7 +12,10 @@
       "Bash(git diff:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(git remote get-url:*)"
+      "Bash(git remote get-url:*)",
+      "Bash(kubectl set image:*)",
+      "Bash(kubectl rollout status:*)",
+      "Bash(kubectl wait:*)"
     ]
   }
 }

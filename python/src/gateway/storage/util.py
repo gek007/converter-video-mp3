@@ -9,7 +9,8 @@ import pika
 def upload(file, fs, channel, access):
     try:
         fid = fs.put(file)
-    except Exception:
+    except Exception as err:
+        print("Error putting file in gridfs", err)
         return "Internal Server Error", 500
 
     message = {"video_fid": str(fid), "mp3_fid": None, "username": access["username"]}
@@ -24,7 +25,8 @@ def upload(file, fs, channel, access):
                 delivery_mode=pika.spec.PERSISTENT_DELIVERY_MODE
             ),
         )
-    except Exception:
+    except Exception as err:
+        print("Error publishing message to queue", err)
         fs.delete(fid)
         return "Internal Server Error", 500
 

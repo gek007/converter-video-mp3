@@ -4,17 +4,17 @@ import sys
 
 import gridfs
 import pika
-from convert import to_mp3
 from dotenv import load_dotenv
 from pymongo import MongoClient
+
+from convert import to_mp3
 
 load_dotenv(".env")
 load_dotenv(".env.local", override=True)
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -51,9 +51,9 @@ def main():
     except Exception as err:
         logger.error(f"Failed to connect to MongoDB: {err}")
         raise
-    
+
     # Extract database name from URI, default to 'gateway'
-    db_name = mongo_uri.split('/')[-1] if '/' in mongo_uri else 'gateway'
+    db_name = mongo_uri.split("/")[-1] if "/" in mongo_uri else "gateway"
     db_videos = client[db_name]
     db_mp3s = client[db_name]
     logger.info(f"Using database: {db_name}")
@@ -64,7 +64,21 @@ def main():
 
     # Connect to RabbitMQ
     try:
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
+        rabbitmq_user = os.getenv("RABBITMQ_USER", "admin")
+        rabbitmq_pass = os.getenv("RABBITMQ_PASS", "guest")
+        # Use Kubernetes service port or default to 5672
+        rabbitmq_port = int(os.getenv("RABBITMQ_PORT_5672_TCP_PORT", "5672"))
+
+        credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(
+                host=rabbitmq_host,
+                port=rabbitmq_port,
+                credentials=credentials,
+                heartbeat=600,
+                blocked_connection_timeout=300,
+            )
+        )
         channel = connection.channel()
         logger.info("Connected to RabbitMQ successfully")
     except Exception as err:

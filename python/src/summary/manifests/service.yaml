@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: summary
+  namespace: video-converter
+  labels:
+    app: summary
+spec:
+  selector:
+    app: summary
+  ports:
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  # Headless service for monitoring/metrics (optional)
+  clusterIP: None

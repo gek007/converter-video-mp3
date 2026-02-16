@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: summary
+  namespace: video-converter
+  labels:
+    app: summary
+    service: summary-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: summary
+  template:
+    metadata:
+      labels:
+        app: summary
+        service: summary-worker
+    spec:
+      containers:
+      - name: summary
+        image: gek007/summary:latest
+        imagePullPolicy: Never  # Use local images for minikube
+        envFrom:
+        - configMapRef:
+            name: summary-config
+        - secretRef:
+            name: summary-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - |
+              import sys
+              import os
+              sys.path.append('/app')
+              try:
+                  from pymongo import MongoClient
+                  from config import Config
+                  client = MongoClient(Config.MONGO_URI)
+                  client.server_info()
+                  print("OK")
+              except:
+                  sys.exit(1)
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - |
+              import sys
+              import os
+              sys.path.append('/app')
+              try:
+                  from pymongo import MongoClient
+                  from config import Config
+                  import pika
+                  client = MongoClient(Config.MONGO_URI)
+                  client.server_info()
+                  credentials = pika.PlainCredentials(Config.RABBITMQ_USER, Config.RABBITMQ_PASS)
+                  conn = pika.BlockingConnection(pika.ConnectionParameters(
+                      host=Config.RABBITMQ_HOST,
+                      port=Config.RABBITMQ_PORT,
+                      credentials=credentials,
+                      connection_timeout=5
+                  ))
+                  conn.close()
+                  print("OK")
+              except:
+                  sys.exit(1)
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      restartPolicy: Always
