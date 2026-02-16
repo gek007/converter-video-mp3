@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: video-converter
+
+# Resources to deploy
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+
+# Secret generator (will prompt for API key)
+secretGenerator:
+  - name: summary-secrets
+    literals:
+      - RABBITMQ_PASS=guest
+    envs:
+      - .env.secrets
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: summary
+  app.kubernetes.io/component: worker
+  app.kubernetes.io/part-of: video-converter
+
+# Images to replace
+images:
+  - name: gek007/summary
+    newTag: latest
+
+# Replicas
+replicas:
+  - name: summary
+    count: 2
+
+# ConfigMap generator (optional overrides)
+configMapGenerator:
+  - name: summary-config
+    literals:
+      - LOG_LEVEL=INFO
+      - OPENAI_MAX_TOKENS=500
+      - OPENAI_TEMPERATURE=0.5

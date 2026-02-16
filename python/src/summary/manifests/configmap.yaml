@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: summary-config
+  namespace: video-converter
+data:
+  # MongoDB Configuration
+  MONGO_URI: mongodb://admin:admin123@mongodb:27017/gateway?authSource=admin
+
+  # RabbitMQ Configuration
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_USER: admin
+  RABBITMQ_PORT: "5672"
+  MP3_QUEUE: mp3
+  SUMMARY_QUEUE: summary
+
+  # OpenAI Configuration
+  OPENAI_WHISPER_MODEL: whisper-1
+  OPENAI_CHAT_MODEL: gpt-4-turbo
+  OPENAI_MAX_TOKENS: "500"
+  OPENAI_TEMPERATURE: "0.5"
+
+  # Processing Configuration
+  MAX_AUDIO_SIZE_MB: "25"
+  TRANSCRIPT_TIMEOUT: "300"
+  SUMMARY_TIMEOUT: "60"
+
+  # Logging
+  LOG_LEVEL: INFO
