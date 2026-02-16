@@ -1,11 +1,11 @@
 ---
-name: Video to MP3 Microservices
-overview: Build a microservice architecture for video to MP3 conversion with Python, Kubernetes, RabbitMQ, MongoDB, and MySQL. The system includes API Gateway, Video Converter, Notification Service, and User Authentication with a Web UI client.
+name: Video to MP3 Microservices with GenAI Summary
+overview: Build a microservice architecture for video to MP3 conversion with Python, Kubernetes, RabbitMQ, MongoDB, and MySQL. The system includes API Gateway, Video Converter, GenAI Summary Service, Notification Service, and User Authentication with a Web UI client.
 todos: []
 isProject: false
 ---
 
-# Video to MP3 Converter - Microservice Architecture Plan
+# Video to MP3 Converter with GenAI Summary - Microservice Architecture Plan
 
 ## Architecture Overview
 
@@ -16,50 +16,68 @@ flowchart TD
     subgraph Clients
         WEB[Web UI]
     end
-    
+
     subgraph Kubernetes["Kubernetes Cluster"]
         subgraph Gateway["API Gateway Service"]
             GW[API Gateway]
         end
-        
+
         subgraph Converter["Video Converter Service"]
             VC[Video Converter Worker]
         end
-        
+
+        subgraph Summary["GenAI Summary Service"]
+            GS[Summary Worker]
+        end
+
         subgraph Notif["Notification Service"]
             NS[Notification Worker]
         end
-        
+
         subgraph Auth["Authentication Service"]
             AUTH[Auth Service]
         end
-        
+
         subgraph Messaging["RabbitMQ"]
             QUEUE[RabbitMQ Message Queue]
         end
-        
+
         subgraph Storage["Databases"]
-            MONGO[(MongoDB<br/>Video/MP3 Files)]
+            MONGO[(MongoDB<br/>Video/MP3/Summaries)]
             MYSQL[(MySQL<br/>User Auth)]
         end
+
+        subgraph External["External APIs"]
+            WHISPER[Whisper API<br/>Voice-to-Text]
+            OPENAI[OpenAI GPT-4.1<br/>Text Summary]
+        end
     end
-    
+
     WEB -->|Upload Video| GW
     WEB -->|Download MP3| GW
+    WEB -->|View Summary| GW
     WEB -->|Login/Register| AUTH
-    
+
     GW -->|Store Video| MONGO
     GW -->|Publish: New Video| QUEUE
     GW -->|Retrieve MP3| MONGO
-    
-    QUEUE -->|Consume: New Video| VC
+    GW -->|Retrieve Summary| MONGO
+
+    QUEUE -->|video: New Video| VC
     VC -->|Retrieve Video| MONGO
     VC -->|Store MP3| MONGO
-    VC -->|Publish: Conversion Done| QUEUE
-    
-    QUEUE -->|Consume: Done| NS
+    VC -->|mp3: Conversion Done| QUEUE
+
+    QUEUE -->|mp3: Conversion Done| GS
+    GS -->|Retrieve MP3| MONGO
+    GS -->|Transcribe Audio| WHISPER
+    GS -->|Generate Summary| OPENAI
+    GS -->|Store Summary| MONGO
+    GS -->|summary: Ready| QUEUE
+
+    QUEUE -->|summary: Ready| NS
     NS -->|Send Email Notification| WEB
-    
+
     AUTH -->|User Data| MYSQL
     GW -->|Verify JWT| AUTH
 ```
@@ -90,6 +108,19 @@ converter_video_mp3/
 │   │   │   ├── main.py
 │   │   │   ├── worker.py
 │   │   │   ├── converter.py
+│   │   │   └── config.py
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── k8s/
+│   │       ├── deployment.yaml
+│   │       └── service.yaml
+│   │
+│   ├── summary-service/       # GenAI summary worker
+│   │   ├── app/
+│   │   │   ├── main.py
+│   │   │   ├── worker.py
+│   │   │   ├── transcribe.py    # Whisper API integration
+│   │   │   ├── summarize.py     # OpenAI GPT-4.1 integration
 │   │   │   └── config.py
 │   │   ├── Dockerfile
 │   │   ├── requirements.txt
@@ -173,9 +204,11 @@ converter_video_mp3/
 - **FastAPI** - API Gateway and Auth Service
 - **Celery + RabbitMQ** - Task queue and message broker
 - **FFmpeg** - Video to MP3 conversion
+- **OpenAI Whisper API** - Voice-to-text transcription
+- **OpenAI GPT-4.1 API** - Text summarization
 - **React 18** - Web UI client
 - **Kubernetes** - Orchestration and deployment
-- **MongoDB** - GridFS for file storage (videos/MP3s)
+- **MongoDB** - GridFS for file storage (videos/MP3s) + summaries collection
 - **MySQL** - User authentication and JWT management
 - **JWT** - Authentication tokens
 
@@ -190,6 +223,9 @@ converter_video_mp3/
 - `python-jose` - JWT handling
 - `python-multipart` - File uploads
 - `aiosmtplib` - Async email sending
+- `openai` - OpenAI API client (Whisper + GPT-4.1)
+- `httpx` - Async HTTP client for API calls
+- `pydub` - Audio processing for Whisper
 
 ## Implementation Tasks
 
@@ -232,7 +268,29 @@ converter_video_mp3/
    - Publish completion message to RabbitMQ
 4. Create Dockerfile with FFmpeg installation and Kubernetes manifests
 
-### Phase 5: Notification Service
+### Phase 5: GenAI Summary Service
+1. Create Celery worker in `[services/summary-service/app/worker.py](services/summary-service/app/worker.py)`
+2. Implement Whisper API integration in `[services/summary-service/app/transcribe.py](services/summary-service/app/transcribe.py)`:
+   - Retrieve MP3 from MongoDB GridFS
+   - Convert audio to suitable format for Whisper (16kHz, mono)
+   - Call Whisper API for transcription
+   - Return transcript text
+3. Implement OpenAI GPT-4.1 integration in `[services/summary-service/app/summarize.py](services/summary-service/app/summarize.py)`:
+   - Accept transcript text
+   - Create prompt for summarization
+   - Call OpenAI Chat Completions API with gpt-4-turbo or gpt-4o
+   - Parse and return summary
+4. Worker flow:
+   - Consume message from RabbitMQ mp3 queue
+   - Retrieve MP3 from MongoDB GridFS
+   - Transcribe audio using Whisper API
+   - Generate summary using OpenAI GPT-4.1
+   - Store summary in MongoDB summaries collection with metadata
+   - Publish completion message to RabbitMQ summary queue
+5. Create Dockerfile and Kubernetes manifests
+6. Configure API keys in Kubernetes Secret
+
+### Phase 6: Notification Service
 1. Create Celery worker in `[services/notification-service/app/worker.py](services/notification-service/app/worker.py)`
 2. Implement email sender in `[services/notification-service/app/email_sender.py](services/notification-service/app/email_sender.py)`
 3. Worker flow:
@@ -240,15 +298,18 @@ converter_video_mp3/
    - Send email with download link and unique ID
 4. Create Dockerfile and Kubernetes manifests
 
-### Phase 6: Web UI
+### Phase 7: Web UI
 1. Initialize React app with Vite
 2. Create authentication pages in `[web-ui/src/pages/LoginPage.jsx](web-ui/src/pages/LoginPage.jsx)`
 3. Create upload page with progress tracking in `[web-ui/src/pages/UploadPage.jsx](web-ui/src/pages/UploadPage.jsx)`
-4. Create download page in `[web-ui/src/pages/DownloadPage.jsx](web-ui/src/pages/DownloadPage.jsx)`
+4. Create download page with MP3 and summary display in `[web-ui/src/pages/DownloadPage.jsx](web-ui/src/pages/DownloadPage.jsx)`
+   - Add summary view section
+   - Display transcript text
+   - Display generated summary
 5. Implement API client in `[web-ui/src/services/api.js](web-ui/src/services/api.js)`
 6. Create Dockerfile and Kubernetes manifests
 
-### Phase 7: Integration & Testing
+### Phase 8: Integration & Testing
 1. Update README with architecture and usage instructions
 2. Create DEPLOYMENT.md with K8s setup guide
 3. Create setup scripts for local and K8s deployment

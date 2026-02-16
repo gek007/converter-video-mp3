@@ -3,8 +3,9 @@ import os
 
 import gridfs
 import pika
+from bson.objectid import ObjectId
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_pymongo import PyMongo
 
 from auth import validate
@@ -14,18 +15,15 @@ from storage import util
 load_dotenv(".env")
 load_dotenv(".env.local", override=True)
 
-
 # Initialize Flask server and MongoDB connection
 server = Flask(__name__)
-server.config["MONGO_URI"] = os.getenv(
-    "MONGO_URI", "mongodb://host.minikube.internal:27017/gateway"
-)
-
-print("MONGO_URI:", server.config["MONGO_URI"])
 
 # Set up MongoDB connection
-mongo = PyMongo(server)
-fs = gridfs.GridFS(mongo.db)
+mongo_video = PyMongo(server, uri="mongodb://host.minikube.internal:27017/videos")
+mongo_mp3 = PyMongo(server, uri="mongodb://host.minikube.internal:27017/mp3s")
+
+fs_video = gridfs.GridFS(mongo_video.db)
+fs_mp3 = gridfs.GridFS(mongo_mp3.db)
 
 # RabbitMQ connection will be lazily initialized
 _rabbitmq_connection = None
@@ -49,7 +47,7 @@ def get_rabbitmq_channel():
                 port=rabbitmq_port,
                 credentials=credentials,
                 heartbeat=600,
-                blocked_connection_timeout=300
+                blocked_connection_timeout=300,
             )
         )
         _rabbitmq_channel = _rabbitmq_connection.channel()
@@ -95,7 +93,7 @@ def upload():
 
                 # Check if result is an error tuple (message, status_code)
                 if isinstance(result, tuple) and len(result) == 2:
-                    print(f"[DEBUG] Upload error tuple detected")
+                    print("[DEBUG] Upload error tuple detected")
                     return jsonify({"error": result[0]}), result[1]
 
             print("[DEBUG] Upload successful")
@@ -103,6 +101,7 @@ def upload():
         except Exception as e:
             print(f"[DEBUG] Exception in upload: {str(e)}")
             import traceback
+
             traceback.print_exc()
             return jsonify({"error": f"Upload failed: {str(e)}"}), 500
     else:
@@ -112,7 +111,29 @@ def upload():
 
 @server.route("/download", methods=["GET"])
 def download():
-    pass
+    access_token, err = validate.token(request)
+
+    if err:
+        print(f"[DEBUG] Token validation failed: {err}")
+        return jsonify({"error": err[0]}), err[1]
+
+    access_data = json.loads(access_token)
+    print(f"[DEBUG] Access data: {access_data}")
+
+    if access_data["admin"]:
+        fid_string = request.args.get("fid")
+        if not fid_string:
+            return jsonify({"error": "fid is required"}), 400
+
+        try:
+            out = fs_mp3.get(ObjectId(fid_string))
+            return send_file(out, download_name=f"{fid_string}.mp3")
+        except Exception as err:
+            print(f"[DEBUG] Error downloading file: {err}")
+            return jsonify({"error": f"Invalid fid: {err}"}), 400
+
+    else:
+        return jsonify({"error": "Not authorized"}), 401
 
 
 def my_test_func():
