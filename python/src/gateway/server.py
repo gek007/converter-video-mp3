@@ -72,28 +72,41 @@ def upload():
     access_token, err = validate.token(request)
 
     if err:
+        print(f"[DEBUG] Token validation failed: {err}")
         return jsonify({"error": err[0]}), err[1]
 
     access_data = json.loads(access_token)
+    print(f"[DEBUG] Access data: {access_data}")
 
     if access_data["admin"]:
         if len(request.files) > 1 or len(request.files) < 1:
+            print("[DEBUG] Invalid file count")
             return jsonify({"error": "Exactly one file required"}), 400
 
         try:
+            print("[DEBUG] Getting RabbitMQ channel")
             channel = get_rabbitmq_channel()
+            print("[DEBUG] Got RabbitMQ channel")
 
             for _, file in request.files.items():
+                print(f"[DEBUG] Uploading file: {file.filename}")
                 result = util.upload(file, fs, channel, access_data)
+                print(f"[DEBUG] Upload result: {result}")
 
                 # Check if result is an error tuple (message, status_code)
                 if isinstance(result, tuple) and len(result) == 2:
+                    print(f"[DEBUG] Upload error tuple detected")
                     return jsonify({"error": result[0]}), result[1]
 
+            print("[DEBUG] Upload successful")
             return jsonify({"message": "Upload successful"}), 200
         except Exception as e:
+            print(f"[DEBUG] Exception in upload: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return jsonify({"error": f"Upload failed: {str(e)}"}), 500
     else:
+        print("[DEBUG] User not authorized")
         return jsonify({"error": "Not authorized"}), 401
 
 
